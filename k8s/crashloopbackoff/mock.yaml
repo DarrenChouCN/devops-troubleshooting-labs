@@ -1,0 +1,44 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: troubleshooting-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: troubleshooting-lab
+  template:
+    metadata:
+      labels:
+        app: troubleshooting-lab
+    spec:
+      containers:
+        - name: app
+          image: python:3.12-alpine
+          command: ["python", "-u", "-c"]
+          args:
+            - |
+              import threading, time
+              from http.server import HTTPServer, SimpleHTTPRequestHandler
+              from urllib.request import urlopen
+
+              # CrashLoopBackOff fix: Missing or invalid configuration can cause startup failures.
+              open("/missing.conf").close()
+              # open("/etc/hosts").close()
+
+              server = HTTPServer(("127.0.0.1", 8081), SimpleHTTPRequestHandler)
+              threading.Thread(target=server.serve_forever, daemon=True).start()
+
+              # CrashLoopBackOff fix: Unavailable API or database dependencies can cause startup failures.
+              print("API status:", urlopen("http://127.0.0.1:9999/", timeout=3).status)
+              # print("API status:", urlopen("http://127.0.0.1:8081/", timeout=3).status)
+
+              memory = [bytearray(1024 * 1024) for _ in range(128)]
+              print("Application started successfully")
+              while True:
+                  time.sleep(60)
+          resources:
+            limits:
+              # CrashLoopBackOff fix: Exceeding memory limits can cause an OOM kill.
+              memory: 64Mi
+              # memory: 256Mi
