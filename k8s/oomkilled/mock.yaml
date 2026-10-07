@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oom-lab
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: oom-lab
+  template:
+    metadata:
+      labels:
+        app: oom-lab
+    spec:
+      containers:
+        - name: app
+          image: python:3.12-alpine
+          resources:
+            requests:
+              memory: 32Mi
+            limits:
+              # OOMKilled fix: Memory usage exceeding the limit can cause an OOM kill.
+              # memory: 64Mi
+              memory: 256Mi
+
+          command: ["python", "-u", "-c"]
+          args:
+            - |
+              import time
+
+              memory = [bytearray(1024 * 1024) for _ in range(128)]
+              cache = []
+              while True:
+                  cache.append(bytearray(4 * 1024 * 1024))
+                  # OOMKilled fix: memory leak, unreleased memory usage can cause continuous memory growth.
+                  # cache.clear()
+                  # After clearing the cache, memory usage stops growing, preventing OOMKilled in this scenario.
+                  print(f"Cached data: {len(cache) * 4} MiB")
+                  time.sleep(1)
