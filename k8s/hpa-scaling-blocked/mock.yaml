@@ -1,0 +1,71 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: hpa-lab
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: compute-quota
+  namespace: hpa-lab
+spec:
+  hard:
+    # HPA fix3: Namespace quota can block the creation of additional Pods.
+    requests.cpu: 100m
+    # requests.cpu: 300m
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cpu-demo
+  namespace: hpa-lab
+spec:
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: cpu-demo
+  template:
+    metadata:
+      labels:
+        app: cpu-demo
+    spec:
+      containers:
+        - name: app
+          image: python:3.12-alpine
+          command:
+            - python
+            - -c
+            - |
+              import time
+              cache = bytearray(32 * 1024 * 1024)
+              time.sleep(86400)
+          resources:
+            requests:
+              cpu: 100m
+              # HPA fix2: Missing memory requests prevent utilization calculation.
+              # memory: 16Mi
+            limits:
+              cpu: 200m
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: cpu-demo
+  namespace: hpa-lab
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: cpu-demo
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        # HPA fix1: An incorrect metric name prevents metric retrieval.
+        name: memory-typo
+        # name: memory
+        target:
+          type: Utilization
+          averageUtilization: 50
