@@ -70,4 +70,38 @@ kubectl describe hpa cpu-demo -n hpa-lab
 
 # Confirm that all 3 replicas are ready after fixing the quota.
 kubectl get deployments,pods -n hpa-lab
+
+kubectl delete namespace hpa-lab
+```
+
+### Deployment Replicas Missing
+
+A Deployment is configured with 3 replicas, but all Pods remain Pending.
+
+```bash
+cd k8s/deployment-replicas-missing
+kubectl apply -f mock.yaml
+
+# Check Pod status.
+kubectl get pods -n replicas-lab
+# Result: All 3 Pods are Pending.
+
+# Inspect scheduling failures.
+kubectl describe pod <pod-name> -n replicas-lab
+# Result: No nodes match the Pod's node selector.
+
+# Remove the incorrect node selector and redeploy.
+kubectl apply -f mock.yaml
+kubectl get pods -n replicas-lab
+
+# Inspect the remaining scheduling failure.
+kubectl describe pod <new-pod-name> -n replicas-lab
+# Result: Pods cannot be scheduled because of insufficient CPU.
+
+# Reduce the CPU request and redeploy.
+kubectl apply -f mock.yaml
+
+# Confirm that all 3 replicas are ready.
+kubectl get deployments,pods -n replicas-lab
+# Expected: The Deployment is 3/3 ready, and all Pods are Running.
 ```
